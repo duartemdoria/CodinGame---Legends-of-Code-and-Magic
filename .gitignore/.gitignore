@@ -1,0 +1,304 @@
+import java.util.*
+import java.io.*;
+import java.math.*;
+//-----------------------------OUTPUT-------------------------//
+enum ActionType//tipos de açoes
+{
+     Pass,
+     Summon,
+     Attack,
+     Pick
+}
+
+enum CardLocation
+{
+    Opponent(-1),
+    InHand(0),
+    Mine(1);
+    
+    private int number;
+
+    private CardLocation(int number)
+    {
+        this.number = number;
+    }
+
+    public int getNumber()
+    {
+       return this.number;
+    }  
+}
+ 
+class Action
+{
+    ActionType type;//objeto da class enum do tipo de açao
+    int id = -1;//id da nossa carta
+    int idTarget = -1;//id da carta do inimigo
+    
+    void pass()//metodo de passar
+    {
+        type = ActionType.Pass;
+    }
+    void summon(int id)//metodo de fazer summon
+    {
+        type = ActionType.Summon;
+        this.id = id;
+    }
+    void attack(int id, int idTarget)//metodo de attacar
+    {
+        type = ActionType.Attack;
+        this.id = id;
+        this.idTarget = idTarget;
+    }
+    void pick(int id)//metodo de escolher carta
+    {
+        type = ActionType.Pick;
+        this.id = id;
+    }
+    
+    void print()
+    {
+        if(type == ActionType.Pass)//caso a açao seje passar
+        {
+            System.out.print("PASS" + " ;");
+        }
+        else if (type == ActionType.Summon)//caso a açao seje fazer summon
+        {
+            System.out.print("SUMMON " + id + " ;");
+        }
+        else if (type == ActionType.Attack)//caso a açao seje atacar
+        {
+            System.out.print("ATTACK " + id + " " + idTarget + " ;");
+        }
+        else if (type == ActionType.Pick)//caso a açao seje atacar
+        {
+            System.out.print("PICK " + id + " ;");
+        }
+    }
+}
+ 
+class Turn//classe do turno
+{
+    ArrayList<Action> actions = new ArrayList<Action> ();//array de açoes
+    
+    void clear()//metodo para dar clear ao arraylist
+    {
+        actions.clear();
+    }
+    
+    void print()//metodo para imprimir
+    {
+        if (actions.isEmpty())//caso nao tenha acoes para realizar imprime pass
+        {
+            System.out.println("PASS");
+        }
+    }
+}
+
+ 
+//-----------------------------INPUT-------------------------//
+class Jogador//clase que contem atributos dos jogadores
+{
+    int hp;
+    int mana;
+    int cardsRemaning;
+    int rune;
+}
+class Card//classe que conte atributos das cartas
+{
+    int id;
+    int cardId;
+    int location;
+    int cardType;
+    int cost;
+    int attack;
+    int defense;
+    int hpChange;
+    int hpChangeEnemy;
+    int cardDraw;
+    boolean breakthrough;
+    boolean charge;
+    boolean guard;
+    boolean drain;
+    boolean lethal;
+    boolean ward;
+}
+
+class Estado
+{
+    ArrayList<Jogador> jogadores = new ArrayList<Jogador> ();
+    int opponentHand;
+    ArrayList<Card> cards = new ArrayList<Card> (); 
+}
+
+class Agente
+{
+    Estado estado = new Estado();
+    Turn bestTurn = new Turn();
+    int cartas = 0;
+    void read()//metodo de leitura de inputs
+    {
+        
+        Scanner in = new Scanner(System.in);
+            for (int i = 0; i < 2; i++) {
+                Jogador jogador = new Jogador();//cria objeto de jogador
+                estado.jogadores.add(jogador);//adiciona ao arraylist
+                
+                int playerHealth = in.nextInt();
+                int playerMana = in.nextInt();
+                int playerDeck = in.nextInt();
+                int playerRune = in.nextInt();
+                
+                //guarda no obj da classe jogador e insere no arraylist
+                jogador.hp = playerHealth;
+                jogador.mana = playerMana;
+                jogador.cardsRemaning = playerDeck;
+                jogador.rune = playerRune;
+            }
+            int opponentHand = in.nextInt();
+            estado.opponentHand = opponentHand;
+            
+            int cardCount = in.nextInt();
+            cartas += cardCount;
+            estado.cards.clear();
+            for (int i = 0; i < cardCount; i++) {
+                Card card = new Card();//cria objeto de carta
+                estado.cards.add(card);//adiciona ao arraylist
+                
+                int cardNumber = in.nextInt();
+                int instanceId = in.nextInt();
+                int location = in.nextInt();
+                int cardType = in.nextInt();
+                int cost = in.nextInt();
+                int attack = in.nextInt();
+                int defense = in.nextInt();
+                String abilities = in.next();
+                int myHealthChange = in.nextInt();
+                int opponentHealthChange = in.nextInt();
+                int cardDraw = in.nextInt();
+                card.cardId=cardNumber;
+                card.id=instanceId;
+                card.location=location;
+                card.cardType=cardType;
+                card.cost=cost;
+                card.attack=attack;
+                card.defense=defense;
+                card.hpChange=myHealthChange;
+                card.hpChangeEnemy=opponentHealthChange;
+                card.cardDraw=cardDraw;
+                
+                for ( char c : abilities.toCharArray())
+                {
+                    if ( c == 'B') card.breakthrough = true;
+                    if ( c == 'C') card.charge = true;
+                    if ( c == 'G') card.guard = true;
+                    if ( c == 'D') card.drain = true;
+                    if ( c == 'L') card.lethal = true;
+                    if ( c == 'W') card.ward = true;
+                }
+            }
+        
+    }
+    
+    void ia()//metodo para inteligenciaArtificial
+    {
+        bestTurn.clear();//clear no arraylist
+        
+        //----------FASE PICK-----------//
+        if (cartas < 91)
+        {
+            return;
+        }
+        
+            
+        //----------FASE BATALHA-----------//  
+        int myMana = estado.jogadores.get(estado.jogadores.size()-2).mana;
+        Card bestCard = null;//vai guardar a melhor carta a ser jogada
+        int bestScore = 0;//variável apra guardar o melhor score
+        boolean jogada = true;//flag para indicar que a ultima bestCard já fez summon
+        
+        for(Card card : estado.cards)
+        {
+            
+            if (card.location != CardLocation.InHand.getNumber())continue;//se a carta não está na mão sai do for atual
+            if (card.cost > myMana)continue;//se o custo da carta é maior que a minha mana sai do for atual
+                        
+            int score = card.cost;//guarda em score o custo da carta em mana
+            if (score > bestScore)//se custa mais que a carta atual, guarda a que custa mais
+            {
+                bestScore = score;
+                bestCard = card;//guarda a carta que custa mais 
+                jogada = false;
+                
+            }     
+            if (bestCard != null && jogada == false)//caso exista carta para jogar e que ainda não tenha sido jogada MIN50
+            {
+                Action action = new Action();
+                bestTurn.actions.add(action);
+                action.summon(bestCard.id);//faz summon da melhor carta
+                jogada = true;
+                action.print();
+            }
+        }    
+        ArrayList<Card> breakthroughs = new ArrayList<Card> ();
+        ArrayList<Card> charges = new ArrayList<Card> ();
+        ArrayList<Card> guards = new ArrayList<Card> ();
+        ArrayList<Card> drains = new ArrayList<Card> ();
+        ArrayList<Card> lethals = new ArrayList<Card> ();
+        ArrayList<Card> wards = new ArrayList<Card> ();
+        
+        for(Card card : estado.cards)
+        {
+            if (card.location != CardLocation.Opponent.getNumber())continue;//se a carta não está no oponente ->próxima carta do for
+            if (card.breakthrough){breakthroughs.add(card);}
+            if (card.charge){charges.add(card);}
+            if (card.guard){guards.add(card);}
+            if (card.drain){drains.add(card);}
+            if (card.lethal){lethals.add(card);}
+            if (card.ward){wards.add(card);}
+        }
+        
+        for(Card card : estado.cards)//para cada carta no tabuleiro
+        {
+            if (card.location != CardLocation.Mine.getNumber())continue;//se a carta não estiver no tabuleiro ->próxima carta do for
+            Action action = new Action();
+            bestTurn.actions.add(action);
+            if(guards.size() == 0)
+            {
+                action.attack(card.id, -1);
+                action.print();
+            }
+            else
+            {
+                Card guard = guards.get(guards.size()-1);
+                guard.defense -= card.attack;
+                action.attack(card.id, guard.id);
+                action.print();
+                if (guard.defense <= 0)
+                    guards.remove(guards.size()-1); 
+            }
+        }
+        System.out.println();
+    }
+    
+    void print()//aux para turno
+    {
+        bestTurn.print();
+    }
+}
+
+
+class Player //classe principal
+{
+    public static void main(String args[]) 
+    {
+        Agente agente = new Agente(); 
+        // game loop
+        while (true) 
+        {
+            agente.read();
+            agente.ia();
+            agente.print();
+        }            
+    }
+}
