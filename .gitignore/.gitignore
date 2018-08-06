@@ -231,7 +231,7 @@ class Agente
                 jogada = false;
                 
             }     
-            if (bestCard != null && jogada == false)//caso exista carta para jogar e que ainda não tenha sido jogada MIN50
+            if (bestCard != null && jogada == false)//caso exista carta para jogar e que ainda não tenha sido jogada
             {
                 Action action = new Action();
                 bestTurn.actions.add(action);
